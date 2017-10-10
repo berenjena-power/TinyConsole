@@ -1,5 +1,5 @@
 //
-//  TinyConsoleController.swift
+//  TinyConsoleViewController.swift
 //  TinyConsole
 //
 //  Created by Devran Uenal on 28.11.16.
@@ -7,183 +7,112 @@
 //
 
 import UIKit
+import MessageUI
 
-open class TinyConsoleController: UIViewController {
-    
-    /// the kind of window modes that are supported by TinyConsole
-    ///
-    /// - collapsed: the console is hidden
-    /// - expanded: the console is shown
-    enum WindowMode {
-        case collapsed
-        case expanded
-    }
-    
-    // MARK: - Private Properties -
-    private var rootViewController: UIViewController
-    
-    private var consoleViewController: TinyConsoleViewController = {
-        return TinyConsoleViewController()
+class TinyConsoleViewController: UIViewController {
+    let consoleTextView: UITextView = {
+        let textView = UITextView()
+        textView.backgroundColor = UIColor.black
+        textView.isEditable = false
+        return textView
     }()
-    
-    private lazy var consoleViewHeightConstraint: NSLayoutConstraint? = {
-        if #available(iOS 9, *) {
-            return self.consoleViewController.view.heightAnchor.constraint(equalToConstant: 0)
-        } else {
-            return NSLayoutConstraint(item: self.consoleViewController.view, attribute: .height, relatedBy: .equal, toItem: nil, attribute: .notAnAttribute, multiplier: 1.0, constant: 0)
-        }
-    }()
-    
-    private let consoleFrameHeight: CGFloat = 120
-    private let expandedHeight: CGFloat = 140
-    
-    private lazy var consoleFrame: CGRect = {
-        
-        var consoleFrame = self.view.bounds
-        consoleFrame.size.height -= self.consoleFrameHeight
-        
-        return consoleFrame
-    }()
-    
-    private var consoleWindowMode: WindowMode = .collapsed {
-        didSet {
-            consoleViewHeightConstraint?.isActive = false
-            consoleViewHeightConstraint?.constant = consoleWindowMode == .collapsed ? 0 : self.expandedHeight
-            consoleViewHeightConstraint?.isActive = true
-        }
-    }
-    
-    // MARK: - Initializer -
-    public init(rootViewController: UIViewController) {
-        self.rootViewController = rootViewController
-        super.init(nibName: nil, bundle: nil)
-    }
-    
-    required public init?(coder aDecoder: NSCoder) {
-        assertionFailure("Interface Builder is not supported")
-        self.rootViewController = UIViewController()
-        super.init(coder: aDecoder)
-    }
-    
-    // MARK: - Public Methods -
-    public var isExpanded: Bool {
-        return consoleWindowMode == .expanded
-    }
     
     override open func viewDidLoad() {
         super.viewDidLoad()
+        TinyConsole.shared.textView = consoleTextView
+        view.addSubview(consoleTextView)
         
-        addChildViewController(consoleViewController)
-        consoleViewController.view.frame = consoleFrame
-        view.addSubview(consoleViewController.view)
-        consoleViewController.didMove(toParentViewController: self)
+        let addMarkerGesture = UISwipeGestureRecognizer(target: self, action: #selector(addMarker))
+        view.addGestureRecognizer(addMarkerGesture)
         
-        addChildViewController(rootViewController)
-        rootViewController.view.frame = CGRect(x: consoleFrame.minX, y: consoleFrame.maxY, width: view.bounds.width, height: 120)
-        view.addSubview(rootViewController.view)
-        rootViewController.didMove(toParentViewController: self)
+        let addCustomTextGesture = UITapGestureRecognizer(target: self, action: #selector(customText))
+        addCustomTextGesture.numberOfTouchesRequired = 2
+        if #available(iOS 9, *) {
+            view.addGestureRecognizer(addCustomTextGesture)
+        } else {
+            consoleTextView.addGestureRecognizer(addCustomTextGesture)
+        }
+        
+        let showAdditionalActionsGesture = UITapGestureRecognizer(target: self, action: #selector(additionalActions))
+        showAdditionalActionsGesture.numberOfTouchesRequired = 3
+        view.addGestureRecognizer(showAdditionalActionsGesture)
         
         setupConstraints()
     }
     
-    open override func motionBegan(_ motion: UIEventSubtype, with event: UIEvent?) {
-        if (motion == UIEventSubtype.motionShake) {
-            consoleWindowMode = consoleWindowMode == .collapsed ? .expanded : .collapsed
-            UIView.animate(withDuration: 0.25) {
-                self.view.layoutIfNeeded()
-            }
+    func setupConstraints() {
+        consoleTextView.translatesAutoresizingMaskIntoConstraints = false
+        if #available(iOS 9, *) {
+            consoleTextView.topAnchor.constraint(equalTo: view.topAnchor).isActive = true
+            consoleTextView.leftAnchor.constraint(equalTo: view.leftAnchor).isActive = true
+            consoleTextView.rightAnchor.constraint(equalTo: view.rightAnchor).isActive = true
+            consoleTextView.bottomAnchor.constraint(equalTo: view.bottomAnchor).isActive = true
+        } else {
+            NSLayoutConstraint(item: consoleTextView, attribute: .top, relatedBy: .equal, toItem: view, attribute: .top, multiplier: 1.0, constant: 0).isActive = true
+            NSLayoutConstraint(item: consoleTextView, attribute: .left, relatedBy: .equal, toItem: view, attribute: .left, multiplier: 1.0, constant: 0).isActive = true
+            NSLayoutConstraint(item: consoleTextView, attribute: .right, relatedBy: .equal, toItem: view, attribute: .right, multiplier: 1.0, constant: 0).isActive = true
+            NSLayoutConstraint(item: consoleTextView, attribute: .bottom, relatedBy: .equal, toItem: view, attribute: .bottom, multiplier: 1.0, constant: 0).isActive = true
         }
     }
     
-    // MARK: - Private Methods -
-    private func setupConstraints() {
-        
-        rootViewController.view.attach(anchor: .top, to: view)
-        
-        consoleViewController.view.attach(anchor: .bottom, to: view)
-        consoleViewHeightConstraint?.isActive = true
-        
-        if #available(iOS 9, *) {
-            
-            rootViewController.view.bottomAnchor.constraint(equalTo: consoleViewController.view.topAnchor).isActive = true
-        } else {
-            
-            NSLayoutConstraint(item: (rootViewController.view)!,
-                               attribute: .bottom,
-                               relatedBy: .equal,
-                               toItem: consoleViewController.view,
-                               attribute: .top,
-                               multiplier: 1.0,
-                               constant: 0)
-                .isActive = true
+    @objc func customText(sender: UITapGestureRecognizer) {
+        let alert = UIAlertController(title: "Custom Log", message: "Enter text you want to log.", preferredStyle: UIAlertControllerStyle.alert)
+        alert.addTextField { (textField: UITextField) in
+            textField.keyboardType = .alphabet
         }
+        
+        let okAction = UIAlertAction(title: "Add log", style: UIAlertActionStyle.default) {
+            (action: UIAlertAction) in
+            if let text = alert.textFields?.first?.text, !text.isEmpty {
+                TinyConsole.print(text)
+            }
+        }
+        
+        let cancelAction = UIAlertAction(title: "Cancel", style: UIAlertActionStyle.cancel, handler: nil)
+        
+        alert.addAction(okAction)
+        alert.addAction(cancelAction)
+        
+        present(alert, animated: true, completion: nil)
+    }
+    
+    @objc func additionalActions(sender: UITapGestureRecognizer) {
+        let alert = UIAlertController(title: nil, message: nil, preferredStyle: UIAlertControllerStyle.actionSheet)
+        
+        let sendMail = UIAlertAction(title: "Send Email", style: UIAlertActionStyle.default) {
+            (action: UIAlertAction) in
+            DispatchQueue.main.async {
+                if let text = TinyConsole.shared.textView?.text {
+                    let composeViewController = MFMailComposeViewController()
+                    composeViewController.mailComposeDelegate = self
+                    composeViewController.setSubject("Console Log")
+                    composeViewController.setMessageBody(text, isHTML: false)
+                    self.present(composeViewController, animated: true, completion: nil)
+                }
+            }
+        }
+        
+        let clearAction = UIAlertAction(title: "Clear", style: UIAlertActionStyle.destructive) {
+            (action: UIAlertAction) in
+            TinyConsole.clear()
+        }
+        
+        let cancelAction = UIAlertAction(title: "Cancel", style: UIAlertActionStyle.cancel, handler: nil)
+        
+        alert.addAction(sendMail)
+        alert.addAction(clearAction)
+        alert.addAction(cancelAction)
+        
+        present(alert, animated: true, completion: nil)
+    }
+    
+    @objc func addMarker(sender: UISwipeGestureRecognizer) {
+        TinyConsole.addMarker()
     }
 }
 
-fileprivate extension UIView {
-    
-    enum Anchor {
-        case top
-        case bottom
-    }
-    
-    func attach(anchor: Anchor, to view: UIView) {
-        
-        translatesAutoresizingMaskIntoConstraints = false
-        
-        if #available(iOS 9, *) {
-            
-            switch anchor {
-            case .top:
-                topAnchor.constraint(equalTo: view.topAnchor).isActive = true
-            case .bottom:
-                bottomAnchor.constraint(equalTo: view.bottomAnchor).isActive = true
-            }
-            
-            leftAnchor.constraint(equalTo: view.leftAnchor).isActive = true
-            rightAnchor.constraint(equalTo: view.rightAnchor).isActive = true
-            
-        } else {
-            
-            switch anchor {
-            case .top:
-                NSLayoutConstraint(item: self,
-                                   attribute: .top,
-                                   relatedBy: .equal,
-                                   toItem: view,
-                                   attribute: .top,
-                                   multiplier: 1.0,
-                                   constant: 0)
-                    .isActive = true
-            case .bottom:
-                NSLayoutConstraint(item: self,
-                                   attribute: .bottom,
-                                   relatedBy: .equal,
-                                   toItem: view,
-                                   attribute: .bottom,
-                                   multiplier: 1.0,
-                                   constant: 0)
-                    .isActive = true
-            }
-            
-            // left anchor
-            NSLayoutConstraint(item: self,
-                               attribute: .left,
-                               relatedBy: .equal,
-                               toItem: view,
-                               attribute: .left,
-                               multiplier: 1.0,
-                               constant: 0)
-                .isActive = true
-            // right anchor
-            NSLayoutConstraint(item: self,
-                               attribute: .right,
-                               relatedBy: .equal,
-                               toItem: view,
-                               attribute: .right,
-                               multiplier: 1.0,
-                               constant: 0)
-                .isActive = true
-        }
+extension TinyConsoleViewController: MFMailComposeViewControllerDelegate {
+    func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) {
+        controller.dismiss(animated: true, completion: nil)
     }
 }
