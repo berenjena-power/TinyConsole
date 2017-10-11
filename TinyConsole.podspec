@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
   s.name             = 'TinyConsole'
-  s.version          = '1.3.2'
-  s.summary          = 'A tiny log console to display information while using your iOS app. Written in Swift 3.'
+  s.version          = '1.4.0'
+  s.summary          = 'A tiny log console to display information while using your iOS app. Written in Swift 4.'
 
   s.description      = <<-DESC
 Shows a console view on the lower bottom of your screen to display debug information of your running app.
