@@ -77,8 +77,8 @@ or checkout the example project included in this repository.
 
 ## Requirements
 
-* Xcode 8
-* Swift 3
+* Xcode 9
+* Swift 4
 * iOS 8 or greater
 
 ## Installation
